@@ -84,6 +84,53 @@ is the same as any other shell.
 
 If you finish early, look at extra credit to start implementing more features.
 
+### Extra Credit: Change Directories with `cd`
+
+In bash, you can change directories with the built-in `cd` command.
+
+Each process keep track of which directory it is running in, and the shell is no
+exception. Each process can change its current directory, as well.
+
+> Why is `cd` built into the shell? Why can't it run as an external command?
+
+Because it is built in, you should check to see if the user entered `cd` in
+`args[0]` _before_ running the command. And if they did, you should
+short-circuit the rest of the main loop with a `continue` statement.
+
+> Look at the implementation of the built-in `exit` command for inspiration.
+
+You can use the program `pwd` to see what directory you are in.
+
+Example run:
+
+```
+lambda-shell$ pwd
+/Users/example
+lambda-shell$ cd src
+lambda-shell$ pwd
+/Users/example/src
+lambda-shell$ cd ..
+lambda-shell$ pwd
+/Users/example
+lambda-shell$ cd foobar
+chdir: No such file or directory
+lambda-shell$ 
+```
+
+If the user entered `cd` as the first argument:
+
+1. Check to make sure they've entered 2 total arguments
+2. Run the system call `chdir()` on the second argument to change directories
+3. Error check the result of `chdir()`. If it returns `-1`, meaning an error
+   occurred, you can print out an error message with:
+   ```
+   perror("chdir"); // #include <errno.h> to use this
+   ```
+4. Execute a `continue` statement to short-circuit the rest of the main loop.
+
+Note that `.` and `..` are actual directories. You don't need to write any
+special case code to handle them.
+
 ### Extra Credit: Background Tasks
 
 In bash, you can run a program in the background by adding an `&` after the
@@ -102,6 +149,26 @@ If it is:
 2. Run the command in the child as usual.
 3. Prevent the parent from `wait()`ing for the child to complete. Just give a
    new prompt immediately. The child will continue to run in the background.
+
+In every instance of the main loop after the user hits `RETURN`, you should wait
+in a loop to reap any background zombies that have died in the meantime. You can
+use a loop do this with without blocking like so:
+
+```c
+// Wait for any other processes that have ended in the
+// meantime. A more correct solution would be to listen for the
+// SIGCHLD signal and wait for zombies at that point.
+while (waitpid(-1, NULL, WNOHANG) > 0)
+    ;
+```
+
+The above (empty) loop will just call `waitpid()` repeatedly until there are no
+more zombies to reap. Then the program continues on.
+
+What happens if you don't do this?
+
+Mini stretch challenge: wait for the `SIGCHLD` signal and put the above `while`
+loop in there instead.
 
 Note that you might get weird output when doing this, like the prompt might
 appear before the program completes, or not at all if the program's output
